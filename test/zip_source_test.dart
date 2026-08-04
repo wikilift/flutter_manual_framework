@@ -65,5 +65,9 @@ List<int> _zipBytes(Map<String, String> files) {
   for (final entry in files.entries) {
     archive.addFile(ArchiveFile.string(entry.key, entry.value));
   }
-  return ZipEncoder().encode(archive);
+  final encoded = ZipEncoder().encode(archive);
+  if (encoded == null) {
+    throw StateError('No se pudo codificar el ZIP de prueba.');
+  }
+  return encoded;
 }

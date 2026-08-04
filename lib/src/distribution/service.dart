@@ -334,7 +334,9 @@ final class OmniDistributionService {
   ) async {
     final input = InputFileStream(file.path);
     try {
-      final archive = ZipDecoder().decodeStream(input);
+      // archive 3.x does not expose ZIP decodeStream; decodeBuffer keeps file
+      // backed input and avoids loading the whole ZIP into a Dart List first.
+      final archive = ZipDecoder().decodeBuffer(input);
       if (archive.length > _maxZipEntries) {
         throw OmniManualsException(
           code: OmniManualsErrorCode.packageInvalid,
@@ -362,7 +364,8 @@ final class OmniDistributionService {
             message: 'Enlace simbólico no permitido en ZIP: ${entry.name}',
           );
         }
-        totalUncompressed += entry.size;
+        final entrySize = _archiveEntrySize(entry);
+        totalUncompressed += entrySize;
         if (totalUncompressed > _maxUncompressedBytes) {
           throw const OmniManualsException(
             code: OmniManualsErrorCode.packageInvalid,
@@ -375,8 +378,15 @@ final class OmniDistributionService {
           final outputStream = OutputFileStream(output.path);
           try {
             entry.writeContent(outputStream);
+          } catch (_) {
+            await outputStream.close();
+            if (await output.exists()) await output.delete();
+            rethrow;
           } finally {
             await outputStream.close();
+          }
+          if (entrySize == 0 && !await output.exists()) {
+            await output.create();
           }
         } else {
           await Directory(target).create(recursive: true);
@@ -530,6 +540,17 @@ final class OmniDistributionService {
   String? _legacyContentRoot(String packageId) {
     return 'manuals/$packageId';
   }
+}
+
+int _archiveEntrySize(ArchiveFile entry) {
+  final size = entry.size;
+  if (size < 0) {
+    throw OmniManualsException(
+      code: OmniManualsErrorCode.packageInvalid,
+      message: 'Entrada ZIP con tamaño negativo: ${entry.name}',
+    );
+  }
+  return size;
 }
 
 Directory _extractRootForPackage(
@@ -744,12 +765,27 @@ Future<void> _copyDirectory(Directory from, Directory to) async {
 }
 
 String? _safeExtractPath(Directory root, String entryName) {
-  if (entryName.isEmpty || entryName.contains(r'\')) return null;
-  final parts = entryName.split('/');
+  final normalizedEntryName = entryName.endsWith('/')
+      ? entryName.substring(0, entryName.length - 1)
+      : entryName;
+  if (normalizedEntryName.isEmpty ||
+      normalizedEntryName.contains(r'\') ||
+      normalizedEntryName.startsWith('/')) {
+    return null;
+  }
+  final parts = normalizedEntryName.split('/');
   if (parts.any((part) => part.isEmpty || part == '.' || part == '..')) {
     return null;
   }
-  return '${root.path}/${parts.join('/')}';
+  final rootUri = root.absolute.uri;
+  final targetUri = rootUri.resolve(parts.join('/')).normalizePath();
+  final rootPath = rootUri.toFilePath();
+  final targetPath = targetUri.toFilePath();
+  final normalizedRoot = rootPath.endsWith(Platform.pathSeparator)
+      ? rootPath
+      : '$rootPath${Platform.pathSeparator}';
+  if (!targetPath.startsWith(normalizedRoot)) return null;
+  return targetPath;
 }
 
 bool _visibleForGroups(Set<String> groups, Set<String> effectiveGroups) =>

@@ -367,6 +367,92 @@ void main() {
       expect(await source.loadAsset('manuals/cmc3/manual.json'), isNull);
     },
   );
+
+  test('extracción ZIP acepta directorios y archivos vacíos', () async {
+    final temp = await Directory.systemTemp.createTemp('omni_zip_empty_');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+    final zipBytes = _zipArchive([
+      ArchiveFile('manuals/empty/', 0, <int>[])..isFile = false,
+      ArchiveFile('manuals/empty/manual.json', 0, <int>[]),
+    ]);
+    final source = CachedSource(
+      upstream: _CountingDistributionSource(
+        manifest: _singleManualManifest('empty', 'Empty', zipBytes),
+        zipBytes: zipBytes,
+      ),
+      cache: OmniManualsCache(root: Directory('${temp.path}/cache')),
+    );
+
+    await source.synchronizeAllAvailable();
+
+    final bytes = await source.loadAsset('manuals/empty/manual.json');
+    expect(bytes, isNotNull);
+    expect(bytes, isEmpty);
+  });
+
+  test('extracción ZIP rechaza paquetes corruptos', () async {
+    final temp = await Directory.systemTemp.createTemp('omni_zip_corrupt_');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+    final zipBytes = utf8.encode('no-es-un-zip');
+    final source = CachedSource(
+      upstream: _CountingDistributionSource(
+        manifest: _singleManualManifest('broken', 'Broken', zipBytes),
+        zipBytes: zipBytes,
+      ),
+      cache: OmniManualsCache(root: Directory('${temp.path}/cache')),
+    );
+
+    await expectLater(source.synchronizeAllAvailable(), throwsException);
+    expect(await source.loadAsset('manuals/broken/manual.json'), isNull);
+  });
+
+  test('extracción ZIP bloquea Zip Slip', () async {
+    final temp = await Directory.systemTemp.createTemp('omni_zip_slip_');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+    final zipBytes = _zipBytes({'../evil.txt': 'bad'});
+    final source = CachedSource(
+      upstream: _CountingDistributionSource(
+        manifest: _singleManualManifest('slip', 'Slip', zipBytes),
+        zipBytes: zipBytes,
+      ),
+      cache: OmniManualsCache(root: Directory('${temp.path}/cache')),
+    );
+
+    await expectLater(
+      source.synchronizeAllAvailable(),
+      throwsA(isA<OmniManualsException>()),
+    );
+    expect(await File('${temp.path}/evil.txt').exists(), isFalse);
+  });
+
+  test('extracción ZIP rechaza tamaño total descomprimido excesivo', () async {
+    final temp = await Directory.systemTemp.createTemp('omni_zip_huge_');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+    final zipBytes = _zipArchive([
+      ArchiveFile('manuals/huge/manual.json', 1024 * 1024 * 1024 + 1, <int>[]),
+    ]);
+    final source = CachedSource(
+      upstream: _CountingDistributionSource(
+        manifest: _singleManualManifest('huge', 'Huge', zipBytes),
+        zipBytes: zipBytes,
+      ),
+      cache: OmniManualsCache(root: Directory('${temp.path}/cache')),
+    );
+
+    await expectLater(
+      source.synchronizeAllAvailable(),
+      throwsA(isA<OmniManualsException>()),
+    );
+    expect(await source.loadAsset('manuals/huge/manual.json'), isNull);
+  });
 }
 
 Uri _endpoint(HttpServer server) => Uri(
@@ -448,7 +534,23 @@ List<int> _zipBytes(Map<String, String> files) {
   for (final entry in files.entries) {
     archive.addFile(ArchiveFile.string(entry.key, entry.value));
   }
-  return ZipEncoder().encode(archive);
+  return _encodeArchive(archive);
+}
+
+List<int> _zipArchive(List<ArchiveFile> files) {
+  final archive = Archive();
+  for (final file in files) {
+    archive.addFile(file);
+  }
+  return _encodeArchive(archive);
+}
+
+List<int> _encodeArchive(Archive archive) {
+  final encoded = ZipEncoder().encode(archive);
+  if (encoded == null) {
+    throw StateError('No se pudo codificar el ZIP de prueba.');
+  }
+  return encoded;
 }
 
 List<int> _manualPackageZip({

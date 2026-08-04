@@ -122,7 +122,6 @@ final class OmniManualLibraryEntry extends OmniLibraryEntry {
 
   /// Manual metadata opened by the runtime.
   final OmniManualInfo manual;
-
 }
 
 /// A recursive collection of manuals and subcollections.

@@ -199,14 +199,16 @@ flutter:
     expect(generated, contains('"icon":"settings"'));
   });
 
-  test('generator rejects unsupported Material icons in library_catalog.json', () {
-    final root = Directory.systemTemp.createTempSync(
-      'omni_manuals_library_catalog_bad_icon_',
-    );
-    addTearDown(() => root.deleteSync(recursive: true));
+  test(
+    'generator rejects unsupported Material icons in library_catalog.json',
+    () {
+      final root = Directory.systemTemp.createTempSync(
+        'omni_manuals_library_catalog_bad_icon_',
+      );
+      addTearDown(() => root.deleteSync(recursive: true));
 
-    _writeManual(root, 'alpha', 'Alpha');
-    File('${root.path}/assets/library_catalog.json').writeAsStringSync('''
+      _writeManual(root, 'alpha', 'Alpha');
+      File('${root.path}/assets/library_catalog.json').writeAsStringSync('''
 {
   "schemaVersion": 1,
   "catalogVersion": "local",
@@ -221,31 +223,34 @@ flutter:
   ]
 }
 ''');
-    final pubspec = File('${root.path}/pubspec.yaml')
-      ..writeAsStringSync('''
+      final pubspec = File('${root.path}/pubspec.yaml')
+        ..writeAsStringSync('''
 name: fixture
 
 flutter:
   uses-material-design: true
 ''');
 
-    expect(
-      () => generateRegistry(
-        RegistryGeneratorOptions(
-          assetRoot: '${root.path}/assets',
-          output: '${root.path}/lib/omni_manuals_registry.g.dart',
-          pubspec: pubspec.path,
+      expect(
+        () => generateRegistry(
+          RegistryGeneratorOptions(
+            assetRoot: '${root.path}/assets',
+            output: '${root.path}/lib/omni_manuals_registry.g.dart',
+            pubspec: pubspec.path,
+          ),
         ),
-      ),
-      throwsA(
-        isA<FormatException>().having(
-          (error) => error.message,
-          'message',
-          contains("El icono 'xxxxx' no pertenece al catálogo Material soportado"),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              "El icono 'xxxxx' no pertenece al catálogo Material soportado",
+            ),
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
 
   test('generator rejects remote asset paths in library_catalog.json', () {
     final root = Directory.systemTemp.createTempSync(

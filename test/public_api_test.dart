@@ -65,7 +65,10 @@ void main() {
     expect(uri.queryParameters['manualId'], 'demo_manual');
     expect(uri.queryParameters['language'], 'es');
     expect(uri.queryParameters['shell'], 'embedded');
-    expect(uri.queryParameters['publicApiBaseUrl'], 'https://manuals.example.com/');
+    expect(
+      uri.queryParameters['publicApiBaseUrl'],
+      'https://manuals.example.com/',
+    );
     expect(uri.queryParameters.containsKey('manual'), isFalse);
     expect(uri.queryParameters.containsKey('lang'), isFalse);
   });

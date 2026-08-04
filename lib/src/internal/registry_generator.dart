@@ -462,7 +462,11 @@ void _validateAssetPath(Map<String, Object?> entry, String key, String path) {
   }
 }
 
-void _validateMaterialIcon(Map<String, Object?> entry, String key, String path) {
+void _validateMaterialIcon(
+  Map<String, Object?> entry,
+  String key,
+  String path,
+) {
   if (!entry.containsKey(key) || entry[key] == null) return;
   final value = entry[key];
   if (value is! String || value.isEmpty) {
