@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'material_icons.dart';
+import 'material_icon_catalog.dart';
 import 'models.dart';
 
 const int omniLibraryCatalogSchemaVersion = 1;
@@ -827,7 +827,7 @@ String? _optionalMaterialIconName(
 ) {
   final value = _optionalString(json, key);
   if (value == null) return null;
-  final normalized = OmniMaterialIcons.normalize(value);
+  final normalized = OmniMaterialIconCatalog.normalize(value);
   if (normalized == null) {
     throw FormatException(
       "El icono '$value' no pertenece al catálogo Material soportado en $path",

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../material_icons.dart';
+import '../material_icon_catalog.dart';
 
 const int _libraryCatalogSchemaVersion = 1;
 const int _maxCatalogJsonBytes = 1024 * 1024;
@@ -472,7 +472,7 @@ void _validateMaterialIcon(
   if (value is! String || value.isEmpty) {
     throw FormatException('$key inválido en $path.');
   }
-  if (OmniMaterialIcons.normalize(value) == null) {
+  if (OmniMaterialIconCatalog.normalize(value) == null) {
     throw FormatException(
       "El icono '$value' no pertenece al catálogo Material soportado en $path.",
     );
