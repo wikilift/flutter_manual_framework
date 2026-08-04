@@ -1,0 +1,9 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body, h1, h2, h3, p, figure, ol { margin: 0; }
+body { min-height: 100vh; }
+img, video { display: block; max-width: 100%; }
+button, input, select { color: inherit; font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }

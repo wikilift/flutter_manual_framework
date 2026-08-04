@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <title>OmniTool Manuals</title>
+    <link rel="stylesheet" href="styles/reset.css">
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/library.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+    <link rel="stylesheet" href="styles/print.css">
+    <script>
+      (() => {
+        const parameters = new URLSearchParams(window.location.search);
+        if (parameters.get("dev") !== "1") return;
+        const context = { manualId: parameters.get("manualId"), language: parameters.get("language"), shell: parameters.get("shell"), search: window.location.search, url: window.location.href, runtimeVersion: "1.12.0" };
+        const trace = (stage, detail = {}) => console.info(`[preview-trace] ${stage}`, { ...context, readyState: document.readyState, ...detail });
+        const report = (stage, reason) => {
+          const error = reason instanceof Error ? reason : new Error(String(reason));
+          const diagnostic = { stage, name: error.name, message: error.message, stack: error.stack, ...context, readyState: document.readyState };
+          console.error("[preview-trace] error", diagnostic);
+          let panel = document.querySelector("#preview-diagnostic");
+          if (!panel) {
+            panel = document.createElement("aside"); panel.id = "preview-diagnostic"; panel.setAttribute("role", "alert");
+            panel.style.cssText = "position:fixed;z-index:99999;inset:16px;max-height:calc(100vh - 32px);overflow:auto;padding:16px;border:2px solid #b42318;border-radius:8px;background:#fff7f6;color:#541313;font:13px/1.45 ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;box-shadow:0 10px 35px #0006";
+            document.body.append(panel);
+          }
+          panel.textContent = `Preview error\n\nStage: ${diagnostic.stage}\nError: ${diagnostic.name}: ${diagnostic.message}\nManual: ${context.manualId ?? "—"}\nLanguage: ${context.language ?? "—"}\nURL: ${context.url}\n\n${diagnostic.stack ?? ""}`;
+        };
+        window.__omniPreviewTrace = trace;
+        window.__omniPreviewReportError = report;
+        window.addEventListener("error", (event) => report("runtime-script", event.error ?? `${event.message} (${event.filename}:${event.lineno}:${event.colno})`));
+        window.addEventListener("unhandledrejection", (event) => report("unhandled-rejection", event.reason));
+        trace("html:loaded");
+        trace("runtime-script:requested", { source: new URL("src/manual.js", window.location.href).href });
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#manual-content">Saltar al contenido</a>
+    <div id="app" class="app-shell" aria-busy="true">
+      <header class="app-header">
+        <button id="back-button" class="icon-button back-button" type="button" aria-label="Volver" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7M8 12h11"/></svg>
+        </button>
+        <p id="header-title" class="header-title">OmniTool Manuals</p>
+        <div class="header-actions">
+          <button id="search-button" class="icon-button" type="button" aria-controls="search-panel" aria-expanded="false" aria-label="Buscar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+          </button>
+          <button id="drawer-button" class="icon-button drawer-button" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Abrir índice" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+        <label class="visually-hidden" for="language-select">Idioma</label>
+        <select id="language-select" class="language-select" aria-label="Idioma"></select>
+      </header>
+      <section id="search-panel" class="search-panel" aria-label="Búsqueda" hidden>
+        <form id="search-form" class="search-form" role="search">
+          <label class="visually-hidden" for="search-input">Buscar documentación</label>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+          <input id="search-input" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar">
+          <button id="search-close" class="search-close" type="button">Cerrar</button>
+        </form>
+        <div id="search-results" class="search-results" aria-live="polite"></div>
+      </section>
+      <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+      <aside id="sidebar" class="sidebar" aria-label="Índice del manual">
+        <div class="sidebar-heading">
+          <span>Índice</span>
+          <button id="drawer-close" class="icon-button sidebar-close" type="button" aria-label="Cerrar índice">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+          </button>
+        </div>
+        <nav id="toc" aria-label="Secciones"></nav>
+      </aside>
+      <main id="manual-content" class="manual-content" tabindex="-1"></main>
+    </div>
+    <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Vista ampliada" hidden>
+      <button id="lightbox-close" class="lightbox-close" type="button" aria-label="Cerrar vista ampliada">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+      <figure>
+        <div id="lightbox-stage" class="annotation-stage"><img id="lightbox-image" alt=""></div>
+        <ol id="lightbox-markers" class="annotation-legend" hidden></ol>
+        <figcaption id="lightbox-caption"></figcaption>
+      </figure>
+    </div>
+    <script type="module" src="src/manual.js" onload="window.__omniPreviewTrace?.('runtime-script:loaded')"></script>
+  </body>
+</html>

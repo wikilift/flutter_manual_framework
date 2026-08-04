@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "defaultIcon": "folder",
+  "legacyAliases": {
+    "__default__": "folder",
+    "Folder": "folder",
+    "folder-special": "folder_open",
+    "controllers": "memory",
+    "configuration": "settings",
+    "manuals": "menu_book",
+    "tools": "build",
+    "videos": "video_library"
+  },
+  "categories": [
+    {
+      "id": "general",
+      "label": { "es": "General", "en": "General" },
+      "icons": ["home", "info", "school"]
+    },
+    {
+      "id": "favorites",
+      "label": { "es": "Favoritos", "en": "Favorites" },
+      "icons": ["star", "favorite"]
+    },
+    {
+      "id": "folders",
+      "label": { "es": "Carpetas", "en": "Folders" },
+      "icons": ["folder", "folder_open", "create_new_folder"]
+    },
+    {
+      "id": "documents",
+      "label": { "es": "Documentos", "en": "Documents" },
+      "icons": ["book", "menu_book", "description", "article"]
+    },
+    {
+      "id": "video",
+      "label": { "es": "Vídeo", "en": "Video" },
+      "icons": ["video_library", "play_circle", "movie"]
+    },
+    {
+      "id": "image",
+      "label": { "es": "Imagen", "en": "Image" },
+      "icons": ["photo", "image", "image_search"]
+    },
+    {
+      "id": "hardware",
+      "label": { "es": "Hardware", "en": "Hardware" },
+      "icons": ["memory", "computer", "devices", "device_hub", "storage"]
+    },
+    {
+      "id": "network",
+      "label": { "es": "Red", "en": "Network" },
+      "icons": ["router", "lan", "wifi", "bluetooth", "usb", "dns", "cloud"]
+    },
+    {
+      "id": "security",
+      "label": { "es": "Seguridad", "en": "Security" },
+      "icons": ["security", "lock", "lock_open"]
+    },
+    {
+      "id": "configuration",
+      "label": { "es": "Configuración", "en": "Configuration" },
+      "icons": ["settings", "build", "construction", "extension"]
+    },
+    {
+      "id": "engineering",
+      "label": { "es": "Ingeniería", "en": "Engineering" },
+      "icons": ["engineering", "terminal", "bug_report"]
+    },
+    {
+      "id": "status",
+      "label": { "es": "Estado", "en": "Status" },
+      "icons": ["check_circle", "cancel", "error", "warning", "warning_amber"]
+    },
+    {
+      "id": "actions",
+      "label": { "es": "Acciones", "en": "Actions" },
+      "icons": ["search", "add", "edit", "delete", "save", "download", "upload"]
+    }
+  ]
+}

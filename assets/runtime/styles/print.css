@@ -1,0 +1,252 @@
+@media print {
+  @page { margin: 0; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .app-header, .sidebar, .drawer-backdrop, .search-panel, .lightbox, .skip-link,
+  .annotation-authoring, .author-button { display: none !important; }
+  html.omni-print-mode, body.omni-print-mode { overflow: visible !important; background: white; }
+  body { background: white; color: #17262d; }
+  .manual-content { padding: 0; overflow: visible; }
+  .manual-section, .manual-section:nth-child(odd):not(.cover) {
+    padding: 0 0 8mm;
+    border: 0;
+    background: white;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  .manual-content > .manual-section:first-child { break-before: auto; page-break-before: auto; }
+  .manual-section:not(.cover) { break-before: page; page-break-before: always; }
+  .manual-section > .section-number, .manual-section > h2, .section-description { break-after: avoid; page-break-after: avoid; }
+  .manual-section h2 { margin-bottom: 4mm; }
+  .section-body { gap: .75rem; break-inside: auto; page-break-inside: auto; }
+  .cover { min-height: auto; padding: 18mm 0 !important; background: #17394a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .paragraph { orphans: 3; widows: 3; }
+  .annotation-number, .annotation-rectangle, .annotation-rectangle-text, .annotation-vector { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .media-button {
+    pointer-events: none;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+  .media-button img, .annotation-stage img, .annotation-surface > img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+  }
+  .image-grid .media-button, .screenshot .media-button { aspect-ratio: auto; }
+  .image-grid img, .screenshot img { height: auto; max-height: none; object-fit: contain; }
+  .media-figure, .video-component, .annotated-image, .callout, .steps > li, .flowchart-component {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .manual-table { break-inside: auto; page-break-inside: auto; overflow: visible; }
+  .manual-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .manual-table thead { display: table-header-group; }
+  .screenshot-gallery { width: 100%; overflow: visible; margin: 0; padding: 0; flex-wrap: wrap; }
+  .screenshot { width: 42%; min-width: 0; }
+  .annotation-stage { break-inside: avoid; page-break-inside: avoid; }
+  .annotation-layer { transform: none !important; }
+  .annotation-marker {
+    display: flex;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    opacity: 1 !important;
+  }
+  .annotation-marker::before, .annotation-marker::after { content: none !important; display: none !important; }
+  .annotation-marker .annotation-number { box-shadow: none !important; }
+  .annotation-marker .annotation-label { display: none !important; }
+  .annotation-overlay-svg { display: block; }
+.annotation-overlay-pulse, .annotation-overlay-pulse *, .annotation-overlay-halo { animation: none !important; transition: none !important; filter: none !important; }
+  .annotation-rectangle-button .annotation-label { display: none !important; }
+  .annotation-legend { display: grid; gap: .75rem; }
+  .annotation-legend li { break-inside: avoid; page-break-inside: avoid; }
+  .annotation-legend li button { align-items: flex-start; pointer-events: none; }
+  .annotation-legend-description { display: block; }
+  .video-print-fallback { display: grid; min-height: 7rem; place-items: center; padding: 1rem; background: #eef2f3; color: #29414e; text-align: center; }
+  .flowchart-component { overflow: visible; }
+  .flowchart-svg { min-width: 0; max-height: none; }
+  html.omni-print-continuous, body.omni-print-continuous {
+    width: var(--print-continuous-width);
+    min-width: var(--print-continuous-width);
+    overflow: visible !important;
+  }
+  body.omni-print-continuous .app-shell,
+  body.omni-print-continuous .manual-content {
+    width: var(--print-continuous-width);
+    min-height: auto;
+    overflow: visible;
+  }
+  body.omni-print-continuous .manual-section,
+  body.omni-print-continuous .manual-section:nth-child(odd):not(.cover),
+  body.omni-print-continuous .section-body,
+  body.omni-print-continuous figure,
+  body.omni-print-continuous table,
+  body.omni-print-continuous .annotated-image,
+  body.omni-print-continuous .annotated-media,
+  body.omni-print-continuous .annotation-stage,
+  body.omni-print-continuous .media-figure,
+  body.omni-print-continuous .video-component,
+  body.omni-print-continuous .callout,
+  body.omni-print-continuous .steps > li,
+  body.omni-print-continuous .flowchart-component {
+    break-before: auto !important;
+    break-after: auto !important;
+    break-inside: auto !important;
+    page-break-before: auto !important;
+    page-break-after: auto !important;
+    page-break-inside: auto !important;
+  }
+  body.omni-print-continuous .manual-section,
+  body.omni-print-continuous .manual-section:nth-child(odd):not(.cover) {
+    padding: 48px 64px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  body.omni-print-continuous .cover { min-height: auto; padding: 64px !important; }
+  body.omni-print-continuous .manual-section h2 { margin-bottom: 18px; }
+  body.omni-print-continuous .paragraph { orphans: auto; widows: auto; }
+  body.omni-print-continuous .screenshot-gallery {
+    display: grid;
+    width: min(100%, var(--technical-content-width));
+    overflow: visible;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin: 0 auto;
+    padding: 0;
+    scroll-snap-type: none;
+  }
+  body.omni-print-continuous .screenshot {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    scroll-snap-align: none;
+  }
+  body.omni-print-continuous .media-button,
+  body.omni-print-continuous .image-grid .media-button,
+  body.omni-print-continuous .screenshot .media-button {
+    aspect-ratio: auto;
+    overflow: visible;
+  }
+  body.omni-print-continuous .media-button img,
+  body.omni-print-continuous .image-grid img,
+  body.omni-print-continuous .screenshot img,
+  body.omni-print-continuous .annotation-surface > img {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+  }
+  body.omni-print-continuous .annotation-surface {
+    position: relative;
+    overflow: visible;
+  }
+  body.omni-print-continuous .annotation-layer,
+  body.omni-print-continuous .annotation-overlay-svg {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+html.omni-print-continuous, body.omni-print-continuous {
+  width: var(--print-continuous-width);
+  min-width: var(--print-continuous-width);
+  overflow: visible !important;
+  background: white;
+}
+body.omni-print-continuous .app-header,
+body.omni-print-continuous .sidebar,
+body.omni-print-continuous .drawer-backdrop,
+body.omni-print-continuous .search-panel,
+body.omni-print-continuous .lightbox,
+body.omni-print-continuous .skip-link,
+body.omni-print-continuous .annotation-authoring,
+body.omni-print-continuous .author-button {
+  display: none !important;
+}
+body.omni-print-continuous .app-shell,
+body.omni-print-continuous .manual-content {
+  width: var(--print-continuous-width);
+  min-height: auto;
+  padding: 0;
+  overflow: visible;
+}
+body.omni-print-continuous .manual-section,
+body.omni-print-continuous .manual-section:nth-child(odd):not(.cover),
+body.omni-print-continuous .section-body,
+body.omni-print-continuous figure,
+body.omni-print-continuous table,
+body.omni-print-continuous .annotated-image,
+body.omni-print-continuous .annotated-media,
+body.omni-print-continuous .annotation-stage,
+body.omni-print-continuous .media-figure,
+body.omni-print-continuous .video-component,
+body.omni-print-continuous .callout,
+body.omni-print-continuous .steps > li,
+body.omni-print-continuous .flowchart-component {
+  break-before: auto !important;
+  break-after: auto !important;
+  break-inside: auto !important;
+  page-break-before: auto !important;
+  page-break-after: auto !important;
+  page-break-inside: auto !important;
+}
+body.omni-print-continuous .manual-section,
+body.omni-print-continuous .manual-section:nth-child(odd):not(.cover) {
+  padding: 48px 64px;
+  border-bottom: 1px solid var(--color-border);
+  background: white;
+}
+body.omni-print-continuous .cover {
+  min-height: auto;
+  padding: 64px !important;
+}
+body.omni-print-continuous .manual-section h2 { margin-bottom: 18px; }
+body.omni-print-continuous .paragraph { orphans: auto; widows: auto; }
+body.omni-print-continuous .screenshot-gallery {
+  display: grid;
+  width: min(100%, var(--technical-content-width));
+  overflow: visible;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 0 auto;
+  padding: 0;
+  scroll-snap-type: none;
+}
+body.omni-print-continuous .screenshot {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  scroll-snap-align: none;
+}
+body.omni-print-continuous .media-button,
+body.omni-print-continuous .image-grid .media-button,
+body.omni-print-continuous .screenshot .media-button {
+  aspect-ratio: auto;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+body.omni-print-continuous .media-button img,
+body.omni-print-continuous .image-grid img,
+body.omni-print-continuous .screenshot img,
+body.omni-print-continuous .annotation-surface > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+body.omni-print-continuous .annotation-surface {
+  position: relative;
+  overflow: visible;
+}
+body.omni-print-continuous .annotation-layer,
+body.omni-print-continuous .annotation-overlay-svg {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
