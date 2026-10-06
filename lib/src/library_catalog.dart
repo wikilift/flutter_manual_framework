@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'material_icon_catalog.dart';
 import 'models.dart';
+import 'internal/localization.dart';
 
 const int omniLibraryCatalogSchemaVersion = 1;
 const int _maxCatalogJsonBytes = 1024 * 1024;
@@ -43,20 +44,17 @@ final class OmniLocalizedText {
 
   final Map<String, String> values;
 
-  String resolve(String? language, {String fallback = ''}) {
-    if (language != null && language.isNotEmpty) {
-      final exact = values[language];
-      if (exact != null) return exact;
-      final base = language.split('-').first;
-      final baseValue = values[base];
-      if (baseValue != null) return baseValue;
-    }
-    final english = values['en'];
-    if (english != null) return english;
-    final spanish = values['es'];
-    if (spanish != null) return spanish;
-    return values.isEmpty ? fallback : values.values.first;
-  }
+  String resolve(
+    String? language, {
+    String? defaultLanguage,
+    String fallback = '',
+  }) =>
+      resolveLocalizedText(
+        values,
+        language,
+        defaultLanguage: defaultLanguage,
+      ) ??
+      fallback;
 
   Map<String, Object?> toJson() => values;
 }
@@ -306,7 +304,8 @@ final class OmniLibraryCatalog {
         entry,
         manualById: manualById,
         assignedManualIds: assignedManualIds,
-        language: language ?? defaultLanguage,
+        language: language,
+        defaultLanguage: defaultLanguage,
         userGroups: userGroups.isEmpty ? const {'default'} : userGroups,
       );
       if (converted != null) result.add(converted);
@@ -581,7 +580,9 @@ final class OmniCachedCatalogSource extends OmniLibraryCatalogSource {
       );
       return !remoteResponse.notModified &&
           remoteResponse.catalog != null &&
-          remoteResponse.rawJson != null;
+          remoteResponse.rawJson != null &&
+          (cached == null ||
+              !_sameCatalog(cached.catalog, remoteResponse.catalog!));
     } catch (_) {
       return false;
     }
@@ -623,7 +624,7 @@ final class OmniCachedCatalogSource extends OmniLibraryCatalogSource {
       lastModified: remoteResponse.lastModified,
     );
     _memory = catalog;
-    return true;
+    return cached == null || !_sameCatalog(cached.catalog, catalog);
   }
 
   Future<OmniCachedLibraryCatalog?> _tryLoadCached(
@@ -660,11 +661,28 @@ final class OmniFallbackCatalogSource extends OmniLibraryCatalogSource {
 
 typedef FallbackCatalogSource = OmniFallbackCatalogSource;
 
+bool _sameCatalog(OmniLibraryCatalog left, OmniLibraryCatalog right) {
+  Object? canonical(Object? value) {
+    if (value is Map<String, Object?>) {
+      return {
+        for (final key in value.keys.toList()..sort())
+          key: canonical(value[key]),
+      };
+    }
+    if (value is List) return value.map(canonical).toList();
+    return value;
+  }
+
+  return jsonEncode(canonical(left.toJson())) ==
+      jsonEncode(canonical(right.toJson()));
+}
+
 OmniLibraryEntry? _toLibraryEntry(
   OmniLibraryCatalogEntry entry, {
   required Map<String, OmniManualInfo> manualById,
   required Set<String> assignedManualIds,
   required String? language,
+  required String? defaultLanguage,
   required Set<String> userGroups,
 }) {
   if (!entry.visibleFor(userGroups)) return null;
@@ -675,17 +693,29 @@ OmniLibraryEntry? _toLibraryEntry(
       assignedManualIds.add(manualId);
       return OmniManualLibraryEntry(
         manual: manual,
-        title: entry.title?.resolve(language, fallback: manual.title),
+        title: entry.title?.resolve(
+          language,
+          defaultLanguage: defaultLanguage,
+          fallback: manual.title,
+        ),
         subtitle: entry.subtitle?.resolve(
           language,
+          defaultLanguage: defaultLanguage,
           fallback: manual.subtitle ?? '',
         ),
-        description: entry.description?.resolve(language),
+        description: entry.description?.resolve(
+          language,
+          defaultLanguage: defaultLanguage,
+        ),
         icon: entry.icon ?? manual.icon,
         image: entry.image ?? manual.poster,
         badges: [
           for (final badge in entry.badges)
-            badge.label.resolve(language, fallback: badge.id),
+            badge.label.resolve(
+              language,
+              defaultLanguage: defaultLanguage,
+              fallback: badge.id,
+            ),
         ],
         featured: entry.featured,
         metadata: entry.metadata,
@@ -698,20 +728,37 @@ OmniLibraryEntry? _toLibraryEntry(
           manualById: manualById,
           assignedManualIds: assignedManualIds,
           language: language,
+          defaultLanguage: defaultLanguage,
           userGroups: userGroups,
         );
         if (converted != null) convertedChildren.add(converted);
       }
       return OmniCollectionEntry(
         id: entry.id,
-        title: entry.title?.resolve(language, fallback: entry.id) ?? entry.id,
-        subtitle: entry.subtitle?.resolve(language),
-        description: entry.description?.resolve(language),
+        title:
+            entry.title?.resolve(
+              language,
+              defaultLanguage: defaultLanguage,
+              fallback: entry.id,
+            ) ??
+            entry.id,
+        subtitle: entry.subtitle?.resolve(
+          language,
+          defaultLanguage: defaultLanguage,
+        ),
+        description: entry.description?.resolve(
+          language,
+          defaultLanguage: defaultLanguage,
+        ),
         icon: entry.icon,
         image: entry.image,
         badges: [
           for (final badge in entry.badges)
-            badge.label.resolve(language, fallback: badge.id),
+            badge.label.resolve(
+              language,
+              defaultLanguage: defaultLanguage,
+              fallback: badge.id,
+            ),
         ],
         featured: entry.featured,
         metadata: entry.metadata,

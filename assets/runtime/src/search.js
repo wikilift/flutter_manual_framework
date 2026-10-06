@@ -1,4 +1,5 @@
 import { getByPath } from "./i18n.js";
+import { sectionTitle } from "./section-titles.js";
 
 export function normalizeSearchText(value) {
   return String(value ?? "")
@@ -20,9 +21,11 @@ function collectKeys(value, output = []) {
   return output;
 }
 
-export function buildSearchIndex(manual, catalog, translate) {
-  return manual.sections.map((section) => {
-    const title = translate(section.titleKey);
+export function buildSearchIndex(manual, catalog, translate, context = {}) {
+  let contentSectionIndex = 0;
+  return manual.sections.map((section, index) => {
+    const isCover = section.type === "cover";
+    const title = isCover ? translate(section.titleKey) : sectionTitle(section, contentSectionIndex++, { ...context, t: translate });
     const texts = collectKeys(section).map((key) => getByPath(catalog, key) ?? translate(key));
     const completeText = [title, ...texts].join(" ");
     return { sectionId: section.id, title, text: completeText, normalized: normalizeSearchText(completeText) };

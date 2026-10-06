@@ -1,6 +1,6 @@
 import { parseRuntimeOptions } from "./app-config.js";
 import { isValidId } from "./config.js";
-import { createOptionalTranslator, createTranslator } from "./i18n.js";
+import { createOptionalTranslator, createTranslator, languageCandidates } from "./i18n.js";
 import { loadLanguage, loadManualPackage, ManualLoadError } from "./loader.js";
 import { findCollectionPath, findVideo, loadLibraryLanguage, loadLibraryPackage, LibraryLoadError } from "./library-loader.js";
 import { buildLibrarySearchIndex, searchLibrary } from "./library-search.js";
@@ -12,6 +12,7 @@ import { buildSearchIndex, searchIndex } from "./search.js";
 import { getState, setState } from "./state.js";
 import { hashSection, navigateHash } from "./router.js";
 import { resolveLocalizedAssets } from "./localized-assets.js";
+import { canNavigateToSection, findAssessmentGates, visibleManual } from "./assessment-gates.js";
 import { bindSingleActiveOverlay, markerDetailNodes, markerLegendContent, overlayArrowGeometry, overlayArrowHeadPath, overlayColor, overlayOpacity, overlayPath, overlayPoints, overlayStrokeWidth, overlayTone, overlayTooltipClass, rectangleFillStyle, rectangleSvgRadius, rectangleTextNodes, scaledOverlayCssPx, syncAnnotationLayer } from "./components/shared.js";
 
 const nodes = {
@@ -52,6 +53,24 @@ const DEFAULT_UI = Object.freeze({
     copy_json: "Copiar JSON",
     copied: "JSON copiado",
     copy_fallback: "Seleccione y copie manualmente el JSON mostrado.",
+    section_fallback: "Sección",
+    assessment_title_fallback: "Test",
+    assessment_question: "Pregunta",
+    assessment_passing_score: "Puntuación mínima",
+    assessment_max_attempts: "Intentos máximos",
+    assessment_unlimited_attempts: "Intentos ilimitados",
+    assessment_gate_enabled: "Bloquea el avance hasta aprobar",
+    assessment_gate_disabled: "Modo libre",
+    assessment_attempt: "Intento",
+    assessment_attempt_of: "de",
+    assessment_submit: "Enviar respuestas",
+    assessment_retry: "Reintentar",
+    assessment_score: "Puntuación",
+    assessment_result: "Resultado",
+    assessment_passed: "Aprobado",
+    assessment_failed: "No aprobado",
+    assessment_attempts_exhausted: "Intentos agotados",
+    assessment_continue: "Puede continuar.",
     types: { manual: "Manual", collection: "Colección", video: "Vídeo" },
   },
 });
@@ -68,6 +87,9 @@ let navigation;
 let localizedAssets = new Map();
 let requestedLanguage = options.language ?? navigator.language;
 let lightboxOverlayActivation;
+const assessmentState = new Map();
+let assessmentGates = [];
+let pendingAssessmentFocusTestId = null;
 
 function libraryAssetUrl(path) {
   return new URL(path, libraryData.root).href;
@@ -86,6 +108,116 @@ function defaultUi(key) {
 }
 
 function ui(key) { return libraryTranslator?.(key) ?? defaultUi(key); }
+
+function assessmentUi() {
+  return {
+    sectionFallback: ui("ui.section_fallback"),
+    assessmentTitleFallback: ui("ui.assessment_title_fallback"),
+    assessmentQuestion: ui("ui.assessment_question"),
+    assessmentPassingScore: ui("ui.assessment_passing_score"),
+    assessmentMaxAttempts: ui("ui.assessment_max_attempts"),
+    assessmentUnlimitedAttempts: ui("ui.assessment_unlimited_attempts"),
+    assessmentGateEnabled: ui("ui.assessment_gate_enabled"),
+    assessmentGateDisabled: ui("ui.assessment_gate_disabled"),
+    assessmentAttempt: ui("ui.assessment_attempt"),
+    assessmentAttemptOf: ui("ui.assessment_attempt_of"),
+    assessmentSubmit: ui("ui.assessment_submit"),
+    assessmentRetry: ui("ui.assessment_retry"),
+    assessmentScore: ui("ui.assessment_score"),
+    assessmentResult: ui("ui.assessment_result"),
+    assessmentPassed: ui("ui.assessment_passed"),
+    assessmentFailed: ui("ui.assessment_failed"),
+    assessmentAttemptsExhausted: ui("ui.assessment_attempts_exhausted"),
+    assessmentContinue: ui("ui.assessment_continue"),
+  };
+}
+
+function normalizeMaxAttempts(value) {
+  const number = Number(value ?? 0);
+  return Number.isInteger(number) && number >= 0 ? number : 0;
+}
+
+function canNavigateTo(sectionId) {
+  return canNavigateToSection(sectionId, manualData?.manual ?? { sections: [] }, assessmentGates, assessmentState);
+}
+
+function explainBlockedNavigation(gate) {
+  if (!gate) return;
+  navigateHash(gate.sectionId, true);
+  markActive(gate.sectionId);
+}
+
+function navigateManualSection(sectionId, smooth = true) {
+  const decision = canNavigateTo(sectionId);
+  if (!decision.ok) {
+    explainBlockedNavigation(decision.gate);
+    return false;
+  }
+  const ok = navigateHash(sectionId, smooth);
+  if (ok) markActive(sectionId);
+  return ok;
+}
+
+function serializeAssessmentState() {
+  return Object.fromEntries([...assessmentState.entries()].map(([testId, value]) => [testId, { attempts: value.attempts, lastScore: value.lastResult?.score ?? null, passed: value.lastResult?.passed === true }]));
+}
+
+function assessmentApi() {
+  return {
+    get(testId) {
+      return assessmentState.get(testId);
+    },
+    retry(testId) {
+      const current = assessmentState.get(testId);
+      if (!current || current.lastResult?.passed) return;
+      assessmentState.set(testId, { ...current, answers: {}, lastResult: null });
+      setState({ assessments: serializeAssessmentState() });
+      pendingAssessmentFocusTestId = testId;
+      renderRoute(navigation.getState().current).catch(showError);
+    },
+    submit(block, answers, result) {
+      const testId = block.testId;
+      const current = assessmentState.get(testId) ?? { attempts: 0, answers: {}, lastResult: null };
+      const maxAttempts = normalizeMaxAttempts(block.maxAttempts);
+      if (current.lastResult || (maxAttempts > 0 && current.attempts >= maxAttempts)) return;
+      const attempt = current.attempts + 1;
+      const remainingAttempts = maxAttempts > 0 ? Math.max(0, maxAttempts - attempt) : null;
+      const next = { attempts: attempt, answers, lastResult: result };
+      assessmentState.set(testId, next);
+      const payload = {
+        type: "assessmentSubmitted",
+        manualId: manualData?.manual.id ?? getState().manualId ?? null,
+        testId,
+        attempt,
+        maxAttempts,
+        score: result.score,
+        passingScore: result.passingScore,
+        passed: result.passed,
+        answers,
+        remainingAttempts,
+        navigationGate: block.navigationGate === true,
+      };
+      setState({ assessments: serializeAssessmentState() });
+      postBridgeMessage(payload);
+      pendingAssessmentFocusTestId = testId;
+      renderRoute(navigation.getState().current).catch(showError);
+    },
+  };
+}
+
+function focusPendingAssessmentResult() {
+  if (!pendingAssessmentFocusTestId) return false;
+  const testId = pendingAssessmentFocusTestId;
+  pendingAssessmentFocusTestId = null;
+  const assessments = nodes.content.querySelectorAll?.(".assessment") ?? [];
+  const assessment = [...assessments].find((node) => node.dataset.testId === testId);
+  if (!assessment) return false;
+  const target = assessment.querySelector(".assessment-result") ?? assessment.querySelector(".assessment-option.is-incorrect") ?? assessment;
+  if (!target.hasAttribute?.("tabindex")) target.setAttribute?.("tabindex", "-1");
+  target.focus?.({ preventScroll: true });
+  target.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+  return true;
+}
 
 function rectangleBorderWidth(overlayData) {
   return Number.isFinite(overlayData.borderWidth) && overlayData.borderWidth > 0 ? overlayData.borderWidth : 2;
@@ -297,7 +429,7 @@ async function ensureLibraryData() {
   return libraryData;
 }
 
-function configureShell(route, title) {
+function configureShell(route, title, settings = {}) {
   const manual = route.view === "manual";
   nodes.content.className = manual ? "manual-content" : "manual-content application-content";
   nodes.drawer.hidden = !manual;
@@ -314,7 +446,7 @@ function configureShell(route, title) {
   document.documentElement.lang = getState().language;
   setDrawer(false);
   setSearch(false);
-  window.scrollTo({ top: 0, behavior: "auto" });
+  if (settings.preserveScroll !== true) window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 async function renderLibraryRoute(route) {
@@ -353,33 +485,40 @@ async function renderManualRoute(route, restore = null) {
   if (language !== getState().language) setState({ language });
   manualTranslator = createTranslator(manualData.catalogs, language, manualData.manual.defaultLanguage, options.devMode);
   manualOptionalTranslator = createOptionalTranslator(manualData.catalogs, language, manualData.manual.defaultLanguage);
+  assessmentGates = findAssessmentGates(manualData.manual);
   previewTrace("catalogs:load:ok", { languages: Object.keys(manualData.catalogs), activeLanguage: language });
   localizedAssets = await resolveLocalizedAssets(manualData.manual, manualData.root, manualData.languageChain, { devMode: options.devMode });
   const title = manualTranslator(manualData.manual.metadata.titleKey);
-  configureShell(route, title);
-  previewTrace("renderer:mount:start", { sections: manualData.manual.sections.length });
-  renderManual(nodes.content, nodes.toc, manualData.manual, {
+  const displayedManual = visibleManual(manualData.manual, assessmentGates, assessmentState);
+  const preserveAssessmentScroll = Boolean(pendingAssessmentFocusTestId);
+  configureShell(route, title, { preserveScroll: preserveAssessmentScroll });
+  previewTrace("renderer:mount:start", { sections: displayedManual.sections.length });
+  renderManual(nodes.content, nodes.toc, displayedManual, {
     t: manualTranslator, optionalT: manualOptionalTranslator, assetUrl: manualAssetUrl, openLightbox, devMode: options.devMode, printMode: options.printMode, apiBaseUrl: options.apiBaseUrl, publicApiBaseUrl: options.publicApiBaseUrl,
     ui: {
       videoUnavailable: ui("ui.video_unavailable"), videoConnectionUnavailable: ui("ui.video_connection_unavailable"), videoPlay: ui("ui.video_play"), videoUnsupported: ui("ui.video_unsupported"),
       assetUnavailable: ui("ui.asset_unavailable"),
       annotationMode: ui("ui.annotation_mode"), annotationInstruction: ui("ui.annotation_instruction"), copyJson: ui("ui.copy_json"),
       copied: ui("ui.copied"), copyFallback: ui("ui.copy_fallback"),
+      ...assessmentUi(),
     },
+    assessments: assessmentApi(),
   });
   previewTrace("renderer:mount:ok", { contentNodes: nodes.content.children.length });
   if (options.printMode) {
     nodes.app.dataset.printRendered = "true";
     nodes.app.dataset.printReady = "false";
   }
-  manualSearchEntries = buildSearchIndex(manualData.manual, manualData.catalogs[language], manualTranslator);
+  manualSearchEntries = buildSearchIndex(displayedManual, manualData.catalogs[language], manualTranslator, { ui: { sectionFallback: ui("ui.section_fallback") } });
   observeSections();
-  const requestedSection = restore?.sectionId ?? hashSection() ?? getState().sectionId ?? manualData.manual.sections[0].id;
+  const requestedSection = restore?.sectionId ?? hashSection() ?? getState().sectionId ?? displayedManual.sections[0].id;
   await new Promise((resolve) => requestAnimationFrame(() => {
-    const target = manualData.manual.sections.some((section) => section.id === requestedSection) ? requestedSection : manualData.manual.sections[0].id;
-    if (!navigateHash(target, false) && restore?.scrollY) window.scrollTo({ top: restore.scrollY, behavior: "auto" });
+    const fallback = displayedManual.sections.at(-1)?.id ?? manualData.manual.sections[0].id;
+    const target = displayedManual.sections.some((section) => section.id === requestedSection) ? requestedSection : fallback;
+    if (!pendingAssessmentFocusTestId && !navigateManualSection(target, false) && restore?.scrollY) window.scrollTo({ top: restore.scrollY, behavior: "auto" });
     else if (restore?.scrollY) window.scrollTo({ top: Math.max(0, restore.scrollY), behavior: "auto" });
-    markActive(target);
+    if (!pendingAssessmentFocusTestId) markActive(target);
+    focusPendingAssessmentResult();
     document.dispatchEvent(new CustomEvent("omnimanual:rendered", { detail: { manualId: manualData.manual.id, language: manualData.language, sectionId: target } }));
     resolve();
   }));
@@ -409,7 +548,7 @@ function renderSearchResults(query) {
     if (!results.length) nodes.searchResults.append(element("p", { className: "empty-results", text: ui("ui.no_results") }));
     results.forEach((result) => {
       const button = element("button", { type: "button", className: "search-result" }, [element("strong", { text: result.title }), element("span", { text: result.excerpt })]);
-      button.addEventListener("click", () => { setSearch(false); navigateHash(result.sectionId); markActive(result.sectionId); });
+      button.addEventListener("click", () => { setSearch(false); navigateManualSection(result.sectionId); });
       nodes.searchResults.append(button);
     });
     return;
@@ -428,6 +567,8 @@ function renderSearchResults(query) {
 
 async function changeLanguage(language) {
   requestedLanguage = language;
+  const descriptor = getState().view === "manual" ? manualData?.manual : libraryData?.library;
+  if (descriptor) language = languageCandidates(language, descriptor.languages, descriptor.defaultLanguage)[0] ?? descriptor.defaultLanguage;
   if (libraryData) {
     await loadLibraryLanguage(libraryData, language);
     libraryTranslator = createTranslator(libraryData.catalogs, language, libraryData.library.defaultLanguage, options.devMode);
@@ -500,8 +641,7 @@ function bindEvents() {
     const link = event.target.closest("a[data-section-id]");
     if (!link) return;
     event.preventDefault();
-    navigateHash(link.dataset.sectionId);
-    markActive(link.dataset.sectionId);
+    navigateManualSection(link.dataset.sectionId);
     setDrawer(false);
   });
   nodes.language.addEventListener("change", () => changeLanguage(nodes.language.value).catch(showError));
@@ -511,7 +651,14 @@ function bindEvents() {
     else if (getState().drawerOpen) setDrawer(false);
     else if (!nodes.searchPanel.hidden) setSearch(false);
   });
-  window.addEventListener("hashchange", () => { if (getState().view === "manual" && hashSection()) navigateHash(hashSection(), false); });
+  nodes.content.addEventListener("click", (event) => {
+    const link = event.target.closest?.("a[href^='#']");
+    const target = link?.getAttribute?.("href")?.slice(1);
+    if (!target) return;
+    event.preventDefault();
+    navigateManualSection(decodeURIComponent(target));
+  });
+  window.addEventListener("hashchange", () => { if (getState().view === "manual" && hashSection()) navigateManualSection(hashSection(), false); });
 }
 
 function nextFrame() {
@@ -751,7 +898,7 @@ async function bootstrap() {
     openSearch: () => setSearch(true),
     openTableOfContents: () => { if (getState().view === "manual") setDrawer(true); },
     handleBridgeRequest,
-    back: () => navigation.back(), setLanguage: changeLanguage, setLocale: changeLanguage, navigateTo: navigateHash,
+    back: () => navigation.back(), setLanguage: changeLanguage, setLocale: changeLanguage, navigateTo: navigateManualSection, canNavigateTo,
     getLoadedManualIdentity: () => {
       const state = getState();
       return { id: state.manual?.id ?? state.manualId ?? null, language: state.language ?? null, titleKey: state.manual?.metadata?.titleKey ?? null, view: state.view };

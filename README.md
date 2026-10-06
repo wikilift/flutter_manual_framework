@@ -123,6 +123,14 @@ The viewer keeps AppBar actions disabled until the runtime bridge reports
 `ready`. Bridge actions use a deterministic JSON result contract and do not
 depend on implicit JavaScript return values.
 
+Runtime-originated events are re-emitted through `OmniManuals.events`. Since
+`0.2.0`, native assessment blocks emit
+`OmniManualsEventType.assessmentSubmitted` with a typed
+`OmniAssessmentResult`. The result includes `manualId`, `testId`, attempt
+metadata, score, passing score, passed state, remaining attempts, gate status
+and `answers` as `questionId -> selectedOptionIds[]`. The SDK does not calculate
+scores; the canonical runtime owns scoring and navigation gates.
+
 `publicApiBaseUrl` is optional. Set it only when manuals contain runtime-backed
 media such as API-streamed SharePoint videos. The embedded runtime uses it to
 resolve relative endpoints like `/api/v1/videos/stream?name=demo.mp4`; manuals
@@ -343,3 +351,26 @@ Installed manuals remain available offline through the local registry and cached
 content. Content that disappears from the remote manifest is not deleted during
 update checks; call `reconcileInstalledContent(removeUnavailable: true)` on a
 `CachedSource` only from an explicit host-owned cleanup action.
+# Localized OTA catalog presentation
+
+`language` selects presentation only; manual IDs and access groups never change.
+Use `Localizations.localeOf(context).toLanguageTag()` to preserve a regional
+locale such as `en-US`; `languageCode` deliberately passes only the base language.
+Localized title, subtitle, description and badge labels resolve requested locale,
+its base language, catalog/manual `defaultLanguage` (and its base), English, then
+the first non-empty translation in sorted language-code order. Missing optional
+text remains empty. A single-language catalog needs no additional translations.
+Manual cards without catalog overrides resolve package metadata from the source
+assets for the requested language; generated registry titles remain a fallback
+for metadata-only sources. Studio `titleKey` documents are a separate format.
+
+The API ETag hashes the complete catalog file. Translation additions, edits,
+deletions, entry `groups` changes and presentation metadata changes invalidate it
+without changing manual package versions. On a `200`, the SDK compares parsed,
+canonical catalog content, so identical content does not report `catalogChanged`.
+`304` means unchanged; checks do not apply updates. Refresh saves the validated
+catalog and HTTP validators locally. `catalogVersion` is not the only change signal.
+
+Admin group title/description metadata is stored separately and is not delivered
+to Flutter/runtime. Clients receive group IDs for visibility filtering, not group
+display names. Editing those Admin-only labels does not update manual packages.

@@ -43,7 +43,7 @@ export async function loadLibraryPackage(requestedLanguage) {
   }
   const language = languageCandidates(requestedLanguage, library.languages, library.defaultLanguage)[0] ?? library.defaultLanguage;
   const catalogs = {};
-  await Promise.all([...new Set([language, library.defaultLanguage])].map(async (code) => {
+  await Promise.all(languageCandidates(requestedLanguage, library.languages, library.defaultLanguage).map(async (code) => {
     const path = library.content[code];
     if (!isSafeRelativePath(path)) throw new LibraryLoadError("LIBRARY_INVALID", `Ruta de traducción no segura: ${code}`);
     catalogs[code] = await fetchJson(new URL(path, root), "TRANSLATION_MISSING");

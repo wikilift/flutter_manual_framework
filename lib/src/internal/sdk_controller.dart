@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -15,6 +16,7 @@ import '../provider.dart';
 import '../state.dart';
 import 'offline_runtime_server.dart';
 import 'runtime_paths.dart';
+import 'manual_metadata.dart';
 
 final OmniManualsController omniManualsController = OmniManualsController();
 
@@ -38,6 +40,10 @@ final class OmniManualsController {
       List.unmodifiable(_libraryEntries);
 
   Stream<OmniManualsEvent> get events => _events.stream;
+
+  void emitRuntimeEvent(OmniManualsEvent event) {
+    _emitEvent(event);
+  }
 
   Future<void> initialize({OmniManualsConfig? config}) {
     final nextConfig = config ?? const OmniManualsConfig();
@@ -112,18 +118,89 @@ final class OmniManualsController {
     }
 
     final catalog = await _tryLoadLibraryCatalog(catalogSource);
+    final localizedManuals = await _localizedManuals(
+      language ?? _config.defaultLanguage,
+    );
     if (catalog != null) {
       return catalog.toLibraryEntries(
-        registry: _manuals,
+        registry: localizedManuals,
         language: language ?? _config.defaultLanguage,
         userGroups: userGroups.isEmpty ? const <String>{'default'} : userGroups,
       );
     }
 
     final legacyEntries = await _tryLoadLegacySourceLibraryEntries();
-    if (legacyEntries.isNotEmpty) return legacyEntries;
+    if (legacyEntries.isNotEmpty) {
+      final byId = {for (final manual in localizedManuals) manual.id: manual};
+      OmniLibraryEntry localize(OmniLibraryEntry entry) => switch (entry) {
+        OmniManualLibraryEntry(:final manual) => OmniManualLibraryEntry(
+          manual: byId[manual.id] ?? manual,
+          title: entry.title == manual.title ? null : entry.title,
+          subtitle: entry.subtitle == manual.subtitle ? null : entry.subtitle,
+          description: entry.description,
+          icon: entry.icon,
+          image: entry.image,
+          badges: entry.badges,
+          featured: entry.featured,
+          metadata: entry.metadata,
+        ),
+        OmniCollectionEntry(:final children) => OmniCollectionEntry(
+          id: entry.id,
+          title: entry.title,
+          subtitle: entry.subtitle,
+          description: entry.description,
+          icon: entry.icon,
+          image: entry.image,
+          badges: entry.badges,
+          featured: entry.featured,
+          metadata: entry.metadata,
+          children: children.map(localize).toList(),
+        ),
+      };
+      return legacyEntries.map(localize).toList();
+    }
 
-    return _flatLibraryEntries();
+    return [
+      for (final manual in localizedManuals)
+        OmniManualLibraryEntry(manual: manual),
+    ];
+  }
+
+  Future<List<OmniManualInfo>> _localizedManuals(String? language) async {
+    final result = <OmniManualInfo>[];
+    for (final manual in _manuals) {
+      result.add(await localizeManual(manual, language));
+    }
+    return result;
+  }
+
+  Future<OmniManualInfo> localizeManual(
+    OmniManualInfo manual,
+    String? language,
+  ) async {
+    final metadata = await readManualMetadata(
+      loadText: (relative) async {
+        final bytes = await _effectiveSource?.loadAsset(
+          'manuals/${manual.id}/$relative',
+        );
+        return bytes == null ? null : utf8.decode(bytes);
+      },
+      fallbackId: manual.id,
+      fallbackVersion: manual.version,
+      fallbackLanguages: manual.languages,
+      language: language ?? _config.defaultLanguage,
+    );
+    if (metadata == null) return manual;
+    return OmniManualInfo(
+      id: manual.id,
+      title: metadata.title,
+      subtitle: metadata.subtitle,
+      version: metadata.version,
+      minimumRuntimeVersion: metadata.minimumRuntimeVersion,
+      languages: metadata.languages,
+      icon: manual.icon,
+      poster: manual.poster,
+    );
   }
 
   Future<void> dispose() async {
@@ -170,10 +247,6 @@ final class OmniManualsController {
       return const <OmniLibraryEntry>[];
     }
   }
-
-  List<OmniLibraryEntry> _flatLibraryEntries() => [
-    for (final manual in _manuals) OmniManualLibraryEntry(manual: manual),
-  ];
 
   Future<Uri> manualUri({
     required String id,

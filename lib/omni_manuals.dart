@@ -32,7 +32,8 @@ export 'src/distribution/update_summary.dart'
         OmniUpdateSummary;
 export 'src/distribution/zip_source.dart' show ZipSource;
 export 'src/errors.dart' show OmniManualsErrorCode, OmniManualsException;
-export 'src/events.dart' show OmniManualsEvent, OmniManualsEventType;
+export 'src/events.dart'
+    show OmniAssessmentResult, OmniManualsEvent, OmniManualsEventType;
 export 'src/library_catalog.dart'
     show
         BundledCatalogSource,

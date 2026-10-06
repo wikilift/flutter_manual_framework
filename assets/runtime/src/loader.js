@@ -42,7 +42,7 @@ export async function loadManualPackage(manualId, requestedLanguage) {
   if (manual.id !== manifest.id || manual.formatVersion !== manifest.formatVersion) throw new ManualLoadError("MANUAL_INVALID", "Manifest y manual no coinciden");
   const candidates = languageCandidates(requestedLanguage, manual.languages, manual.defaultLanguage);
   const language = candidates[0] ?? manual.defaultLanguage;
-  const languagesToLoad = new Set([language, manual.defaultLanguage]);
+  const languagesToLoad = new Set(candidates);
   const catalogs = {};
   for (const languageCode of languagesToLoad) {
     const contentPath = manual.content[languageCode];

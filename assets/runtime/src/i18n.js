@@ -13,15 +13,15 @@ export function languageFallbackChain(requested, defaultLanguage) {
 }
 
 export function languageCandidates(requested, available, defaultLanguage) {
-  return languageFallbackChain(requested, defaultLanguage).filter((item) => available.includes(item));
+  return [...new Set([...languageFallbackChain(requested, defaultLanguage), ...languageFallbackChain(defaultLanguage), "en", ...[...available].sort()])].filter((item) => available.includes(item));
 }
 
 export function createTranslator(catalogs, language, defaultLanguage, development = true) {
   return (key) => {
-    const preferred = getByPath(catalogs[language], key);
-    if (typeof preferred === "string") return preferred;
-    const fallback = getByPath(catalogs[defaultLanguage], key);
-    if (typeof fallback === "string") return fallback;
+    for (const candidate of languageCandidates(language, Object.keys(catalogs), defaultLanguage)) {
+      const value = getByPath(catalogs[candidate], key);
+      if (typeof value === "string" && value.trim()) return value;
+    }
     console.warn(`[i18n] Falta la traducción: ${key} (${language})`);
     return development ? `⟦${key}⟧` : key;
   };
@@ -30,10 +30,10 @@ export function createTranslator(catalogs, language, defaultLanguage, developmen
 export function createOptionalTranslator(catalogs, language, defaultLanguage) {
   return (key) => {
     if (!key) return "";
-    const preferred = getByPath(catalogs[language], key);
-    if (typeof preferred === "string" && preferred.trim()) return preferred.trim();
-    const fallback = getByPath(catalogs[defaultLanguage], key);
-    if (typeof fallback === "string" && fallback.trim()) return fallback.trim();
+    for (const candidate of languageCandidates(language, Object.keys(catalogs), defaultLanguage)) {
+      const value = getByPath(catalogs[candidate], key);
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
     return "";
   };
 }

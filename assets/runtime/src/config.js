@@ -1,4 +1,4 @@
-export const RUNTIME_VERSION = "1.12.0";
+export const RUNTIME_VERSION = "1.13.0";
 export const SUPPORTED_FORMAT_VERSION = 1;
 export const DEFAULT_MANUAL_ID = "demo_manual";
 

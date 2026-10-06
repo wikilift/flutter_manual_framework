@@ -5,9 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../errors.dart';
+import '../events.dart';
 import 'runtime_paths.dart';
 
 typedef RuntimeScriptRunner = Future<void> Function(String script);
+typedef RuntimeEventHandler = void Function(OmniManualsEvent event);
 
 final class RuntimeBridgeScripts {
   const RuntimeBridgeScripts._();
@@ -159,15 +161,24 @@ final class _PendingRuntimeAction {
 }
 
 final class RuntimeBridge extends ChangeNotifier {
-  RuntimeBridge(WebViewController controller)
-    : this.withRunner(controller.runJavaScript);
+  RuntimeBridge(
+    WebViewController controller, {
+    RuntimeEventHandler? onRuntimeEvent,
+  }) : this.withRunner(
+         controller.runJavaScript,
+         runtimeEventHandler: onRuntimeEvent,
+       );
 
   @visibleForTesting
-  RuntimeBridge.withRunner(this._runner);
+  RuntimeBridge.withRunner(
+    this._runner, {
+    RuntimeEventHandler? runtimeEventHandler,
+  }) : _onRuntimeEvent = runtimeEventHandler;
 
   static const Duration _actionTimeout = Duration(seconds: 15);
 
   final RuntimeScriptRunner _runner;
+  final RuntimeEventHandler? _onRuntimeEvent;
 
   final Map<String, _PendingRuntimeAction> _pendingActions =
       <String, _PendingRuntimeAction>{};
@@ -309,6 +320,11 @@ final class RuntimeBridge extends ChangeNotifier {
         return null;
       }
 
+      if (type == 'assessmentSubmitted') {
+        _handleAssessmentSubmitted(message);
+        return null;
+      }
+
       // Compatibilidad con mensajes antiguos sin type:
       // {"state":"ready","detail":{...}}
       if (type == 'state' || message.containsKey('state')) {
@@ -325,6 +341,24 @@ final class RuntimeBridge extends ChangeNotifier {
         '$stackTrace',
       );
       return null;
+    }
+  }
+
+  void _handleAssessmentSubmitted(Map<String, Object?> message) {
+    try {
+      final result = OmniAssessmentResult.fromJson(message);
+      _onRuntimeEvent?.call(
+        OmniManualsEvent(
+          type: OmniManualsEventType.assessmentSubmitted,
+          manualId: result.manualId,
+          assessmentResult: result,
+        ),
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[OmniManuals] ignored invalid assessmentSubmitted message: $error\n'
+        '$stackTrace',
+      );
     }
   }
 

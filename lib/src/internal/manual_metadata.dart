@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../models.dart';
+import 'localization.dart';
 
 final class OmniManualMetadata {
   const OmniManualMetadata({
@@ -37,24 +38,51 @@ Future<OmniManualMetadata?> readManualMetadataFromDirectory(
   required String fallbackId,
   String? fallbackVersion,
   List<String> fallbackLanguages = const <String>[],
+  String? language,
 }) async {
   final manualFile = File('${root.path}/manual.json');
   if (!await manualFile.exists()) return null;
-  final decoded = jsonDecode(await manualFile.readAsString());
+  return readManualMetadata(
+    loadText: (relative) async {
+      if (!_safeRelativePath(relative)) return null;
+      final file = File('${root.path}/$relative');
+      return await file.exists() ? file.readAsString() : null;
+    },
+    fallbackId: fallbackId,
+    fallbackVersion: fallbackVersion,
+    fallbackLanguages: fallbackLanguages,
+    language: language,
+  );
+}
+
+Future<OmniManualMetadata?> readManualMetadata({
+  required Future<String?> Function(String relative) loadText,
+  required String fallbackId,
+  String? fallbackVersion,
+  List<String> fallbackLanguages = const [],
+  String? language,
+}) async {
+  final textCache = <String, Future<String?>>{};
+  final originalLoader = loadText;
+  loadText = (relative) =>
+      textCache.putIfAbsent(relative, () => originalLoader(relative));
+  final raw = await loadText('manual.json');
+  if (raw == null) return null;
+  final decoded = jsonDecode(raw);
   if (decoded is! Map<String, Object?>) return null;
   final id = _string(decoded['id']) ?? fallbackId;
   final languages = _strings(decoded['languages']);
   final defaultLanguage = _string(decoded['defaultLanguage']);
   final content = decoded['content'];
   final languageOrder = _languageOrder(
-    requested: null,
+    requested: language,
     defaultLanguage: defaultLanguage,
     languages: languages.isEmpty ? fallbackLanguages : languages,
     content: content,
   );
   final title =
       await _resolveKeyedText(
-        root: root,
+        loadText: loadText,
         manualJson: decoded,
         keyName: 'titleKey',
         languageOrder: languageOrder,
@@ -65,7 +93,7 @@ Future<OmniManualMetadata?> readManualMetadataFromDirectory(
       id;
   final subtitle =
       await _resolveKeyedText(
-        root: root,
+        loadText: loadText,
         manualJson: decoded,
         keyName: 'subtitleKey',
         languageOrder: languageOrder,
@@ -83,7 +111,7 @@ Future<OmniManualMetadata?> readManualMetadataFromDirectory(
 }
 
 Future<String?> _resolveKeyedText({
-  required Directory root,
+  required Future<String?> Function(String relative) loadText,
   required Map<String, Object?> manualJson,
   required String keyName,
   required List<String> languageOrder,
@@ -96,7 +124,7 @@ Future<String?> _resolveKeyedText({
   final lookupKey = key ?? fallbackKey;
   if (lookupKey == null) return null;
   for (final language in languageOrder) {
-    final content = await _loadContent(root, manualJson, language);
+    final content = await _loadContent(loadText, manualJson, language);
     if (content == null) continue;
     final direct = content[lookupKey];
     if (direct is String && direct.trim().isNotEmpty) return direct.trim();
@@ -107,7 +135,7 @@ Future<String?> _resolveKeyedText({
 }
 
 Future<Map<String, Object?>?> _loadContent(
-  Directory root,
+  Future<String?> Function(String relative) loadText,
   Map<String, Object?> manualJson,
   String language,
 ) async {
@@ -115,11 +143,9 @@ Future<Map<String, Object?>?> _loadContent(
   if (content is! Map<String, Object?>) return null;
   final relative = _string(content[language]);
   if (relative == null || !_safeRelativePath(relative)) return null;
-  final file = File(
-    '${root.path}/${relative.split('/').join(Platform.pathSeparator)}',
-  );
-  if (!await file.exists()) return null;
-  final decoded = jsonDecode(await file.readAsString());
+  final raw = await loadText(relative);
+  if (raw == null) return null;
+  final decoded = jsonDecode(raw);
   return decoded is Map<String, Object?> ? decoded : null;
 }
 
@@ -139,7 +165,8 @@ String? _localizedText(Object? value, List<String> languageOrder) {
       final item = value[language];
       if (item is String && item.trim().isNotEmpty) return item.trim();
     }
-    for (final item in value.values) {
+    for (final key in value.keys.whereType<String>().toList()..sort()) {
+      final item = value[key];
       if (item is String && item.trim().isNotEmpty) return item.trim();
     }
   }
@@ -152,26 +179,10 @@ List<String> _languageOrder({
   required List<String> languages,
   required Object? content,
 }) {
-  final output = <String>[];
-  void add(String? value) {
-    if (value != null && value.isNotEmpty && !output.contains(value)) {
-      output.add(value);
-      final base = value.split('-').first;
-      if (base.isNotEmpty && !output.contains(base)) output.add(base);
-    }
-  }
-
-  add(requested);
-  add(defaultLanguage);
-  for (final language in languages) {
-    add(language);
-  }
-  if (content is Map) {
-    for (final key in content.keys) {
-      if (key is String) add(key);
-    }
-  }
-  return output;
+  return localizedLanguageOrder(requested, defaultLanguage, {
+    ...languages,
+    if (content is Map) ...content.keys.whereType<String>(),
+  });
 }
 
 bool _safeRelativePath(String value) {

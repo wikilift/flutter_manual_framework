@@ -46,6 +46,9 @@ class _OmniManualViewerPageState extends State<OmniManualViewerPage> {
   _ViewerState _state = _ViewerState.initializing;
   OmniManualsException? _error;
   Future<void>? _activeAction;
+  String? _selectedLanguage;
+  String? _localizedTitle;
+  int _titleRequest = 0;
 
   OmniManualsLoadingBuilder? get _loadingBuilder =>
       widget.loadingBuilder ?? widget.builders.loadingBuilder;
@@ -60,6 +63,19 @@ class _OmniManualViewerPageState extends State<OmniManualViewerPage> {
   void initState() {
     super.initState();
     _state = _ViewerState.loading;
+    _selectedLanguage = widget.language;
+    unawaited(_updateTitle());
+  }
+
+  Future<void> _updateTitle() async {
+    final request = ++_titleRequest;
+    final manual = await omniManualsController.localizeManual(
+      widget.manual,
+      _selectedLanguage,
+    );
+    if (mounted && request == _titleRequest) {
+      setState(() => _localizedTitle = manual.title);
+    }
   }
 
   @override
@@ -123,7 +139,7 @@ class _OmniManualViewerPageState extends State<OmniManualViewerPage> {
     final scaffold = Scaffold(
       appBar: widget.options.showAppBar
           ? AppBar(
-              title: Text(widget.manual.title),
+              title: Text(_localizedTitle ?? widget.manual.title),
               centerTitle: widget.options.centerTitle,
               automaticallyImplyLeading:
                   widget.options.automaticallyImplyLeading,
@@ -156,14 +172,19 @@ class _OmniManualViewerPageState extends State<OmniManualViewerPage> {
                 if (widget.options.showLanguageSelector)
                   _LanguageMenu(
                     languages: widget.manual.languages,
-                    selectedLanguage: widget.language,
+                    selectedLanguage: _selectedLanguage,
                     strings: widget.strings,
                     theme: widget.theme,
                     onSelected: ready
                         ? (language) => unawaited(
-                            _runBridgeAction(
-                              (bridge) => bridge.setLocale(language),
-                            ),
+                            _runBridgeAction((bridge) async {
+                              final result = await bridge.setLocale(language);
+                              if (result.ok && mounted) {
+                                setState(() => _selectedLanguage = language);
+                                await _updateTitle();
+                              }
+                              return result;
+                            }),
                           )
                         : null,
                   ),
@@ -351,7 +372,10 @@ class _OmniManualState extends State<OmniManual> {
         ..setBackgroundColor(widget.theme.webViewBackgroundColor);
 
       _controllerInstance = controller;
-      final bridge = RuntimeBridge(controller);
+      final bridge = RuntimeBridge(
+        controller,
+        onRuntimeEvent: omniManualsController.emitRuntimeEvent,
+      );
       _bridge = bridge;
 
       widget.onBridgeStateChanged?.call(RuntimeBridgeState.loading);

@@ -11,6 +11,7 @@ let state = Object.freeze({
   videoId: null,
   sectionId: null,
   section: null,
+  assessments: {},
   drawerOpen: false,
   lightboxOpen: false,
 });

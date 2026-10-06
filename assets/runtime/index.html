@@ -16,7 +16,7 @@
       (() => {
         const parameters = new URLSearchParams(window.location.search);
         if (parameters.get("dev") !== "1") return;
-        const context = { manualId: parameters.get("manualId"), language: parameters.get("language"), shell: parameters.get("shell"), search: window.location.search, url: window.location.href, runtimeVersion: "1.12.0" };
+        const context = { manualId: parameters.get("manualId"), language: parameters.get("language"), shell: parameters.get("shell"), search: window.location.search, url: window.location.href, runtimeVersion: "1.13.0" };
         const trace = (stage, detail = {}) => console.info(`[preview-trace] ${stage}`, { ...context, readyState: document.readyState, ...detail });
         const report = (stage, reason) => {
           const error = reason instanceof Error ? reason : new Error(String(reason));

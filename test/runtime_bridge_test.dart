@@ -263,6 +263,52 @@ void main() {
     expect(bridge.state, RuntimeBridgeState.ready);
   });
 
+  test('bridge emits typed assessmentSubmitted events', () {
+    final events = <OmniManualsEvent>[];
+    final bridge = RuntimeBridge.withRunner(
+      (script) async {},
+      runtimeEventHandler: events.add,
+    )..updateState(RuntimeBridgeState.ready);
+
+    final state = bridge.handleMessage(
+      jsonEncode({
+        'type': 'assessmentSubmitted',
+        'manualId': 'manual_demo',
+        'testId': 'test_demo',
+        'attempt': 2,
+        'maxAttempts': 3,
+        'score': 75,
+        'passingScore': 75,
+        'passed': true,
+        'answers': {
+          'q1': ['a'],
+          'q2': ['b', 'd'],
+        },
+        'remainingAttempts': 1,
+        'navigationGate': true,
+      }),
+    );
+
+    expect(state, isNull);
+    expect(events, hasLength(1));
+    expect(events.single.type, OmniManualsEventType.assessmentSubmitted);
+    expect(events.single.manualId, 'manual_demo');
+    final result = events.single.assessmentResult;
+    expect(result, isNotNull);
+    expect(result!.testId, 'test_demo');
+    expect(result.attempt, 2);
+    expect(result.maxAttempts, 3);
+    expect(result.score, 75);
+    expect(result.passingScore, 75);
+    expect(result.passed, isTrue);
+    expect(result.remainingAttempts, 1);
+    expect(result.navigationGate, isTrue);
+    expect(result.answers, {
+      'q1': ['a'],
+      'q2': ['b', 'd'],
+    });
+  });
+
   test('bridge state parser accepts runtime protocol messages', () {
     expect(
       runtimeBridgeStateFromMessage('{"type":"state","state":"loading"}'),
