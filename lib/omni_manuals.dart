@@ -74,6 +74,7 @@ export 'src/widgets.dart'
         OmniManual,
         OmniManualCardBuilder,
         OmniManualIconBuilder,
+        OmniManualOpenedCallback,
         OmniManualSelectedCallback,
         OmniManualsBuilders,
         OmniManualsEmptyBuilder,

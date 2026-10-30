@@ -101,6 +101,9 @@ OmniManualsLibrary(
   loadingBuilder: (context) => const Center(
     child: CircularProgressIndicator(),
   ),
+  onManualOpened: (context, manual) {
+    // Optional: observe default viewer openings without replacing navigation.
+  },
   onManualSelected: (context, manual) {
     // Optional: if provided, the SDK does not push its default viewer route.
   },

@@ -146,6 +146,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('callback de apertura conserva la navegación automática', (
+    tester,
+  ) async {
+    await initialize();
+    final opened = <OmniManualInfo>[];
+    void onManualOpened(BuildContext context, OmniManualInfo manual) {
+      opened.add(manual);
+    }
+
+    expect(onManualOpened, isA<OmniManualOpenedCallback>());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OmniManualsLibrary(onManualOpened: onManualOpened),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Demo manual'));
+    await tester.pump();
+
+    expect(
+      find.byType(OmniManualViewerPage, skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(opened.map((manual) => manual.id), <String>['demo_manual']);
+    expect(opened, hasLength(1));
+  });
+
   testWidgets('colecciones navegan con breadcrumbs y back interno', (
     tester,
   ) async {

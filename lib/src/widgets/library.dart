@@ -126,6 +126,7 @@ class OmniManualsLibrary extends StatefulWidget {
     this.collectionIconBuilder,
     this.rootLabel,
     this.onManualSelected,
+    this.onManualOpened,
     this.userGroups = const <String>{'default'},
     this.publicApiBaseUrl,
   });
@@ -162,6 +163,7 @@ class OmniManualsLibrary extends StatefulWidget {
   final OmniCollectionIconBuilder? collectionIconBuilder;
 
   final OmniManualSelectedCallback? onManualSelected;
+  final OmniManualOpenedCallback? onManualOpened;
   final Set<String> userGroups;
   final Uri? publicApiBaseUrl;
 
@@ -347,20 +349,43 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
     }
     if (!widget.navigateOnManualTap) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OmniManualViewerPage(
-          manual: manual,
-          language: widget.language,
-          strings: widget.strings,
-          theme: widget.theme,
-          builders: widget.builders,
-          options: widget.viewerOptions,
-          loadingBuilder: _loadingBuilder,
-          errorBuilder: _errorBuilder,
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OmniManualViewerPage(
+            manual: manual,
+            language: widget.language,
+            strings: widget.strings,
+            theme: widget.theme,
+            builders: widget.builders,
+            options: widget.viewerOptions,
+            loadingBuilder: _loadingBuilder,
+            errorBuilder: _errorBuilder,
+          ),
         ),
       ),
     );
+
+    final onManualOpened = widget.onManualOpened;
+    if (onManualOpened == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        onManualOpened(context, manual);
+      } catch (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'omni_manuals',
+            context: ErrorDescription(
+              'while notifying that a manual was opened',
+            ),
+          ),
+        );
+      }
+    });
   }
 
   List<OmniLibraryEntry> _filterEntries(

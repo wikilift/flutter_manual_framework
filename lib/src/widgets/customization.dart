@@ -9,6 +9,8 @@ typedef OmniManualsErrorBuilder =
     Widget Function(BuildContext context, OmniManualsException error);
 typedef OmniManualSelectedCallback =
     void Function(BuildContext context, OmniManualInfo manual);
+typedef OmniManualOpenedCallback =
+    void Function(BuildContext context, OmniManualInfo manual);
 typedef OmniManualIconBuilder =
     Widget Function(BuildContext context, OmniManualInfo manual);
 typedef OmniCollectionIconBuilder =
