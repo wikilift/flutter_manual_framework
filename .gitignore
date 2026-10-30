@@ -4,3 +4,4 @@ build/
 pubspec.lock
 doc/
 .DS_Store
+test/
