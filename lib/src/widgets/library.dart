@@ -211,10 +211,7 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
       return;
     }
     setState(() {
-      _entries = _loadEntries().then((entries) {
-        _preserveValidPath(entries);
-        return entries;
-      });
+      _entries = _loadEntries();
     });
   }
 
@@ -225,7 +222,10 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
         !identical(oldWidget.catalogSource, widget.catalogSource) ||
         oldWidget.userGroups != widget.userGroups ||
         oldWidget.language != widget.language) {
-      _path.clear();
+      if (!identical(oldWidget.source, widget.source) ||
+          !identical(oldWidget.catalogSource, widget.catalogSource)) {
+        _path.clear();
+      }
       _entries = _loadEntries();
     }
   }
@@ -240,6 +240,10 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
   }
 
   Future<List<OmniLibraryEntry>> _loadEntries() async {
+    // Capture this request before initialization yields to a newer widget.
+    final language = widget.language;
+    final catalogSource = widget.catalogSource;
+    final userGroups = widget.userGroups;
     if (OmniManuals.state != OmniManualsState.ready) {
       await OmniManuals.initialize(
         config: OmniManualsConfig(
@@ -252,9 +256,9 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
       );
     }
     return omniManualsController.resolveLibraryEntries(
-      catalogSource: widget.catalogSource,
-      language: widget.language,
-      userGroups: widget.userGroups,
+      catalogSource: catalogSource,
+      language: language,
+      userGroups: userGroups,
     );
   }
 
@@ -278,6 +282,8 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
           }
 
           final rootEntries = snapshot.requireData;
+          // Only the current FutureBuilder result may replace path models.
+          _preserveValidPath(rootEntries);
           final visibleEntries = _path.isEmpty
               ? rootEntries
               : _path.last.children;

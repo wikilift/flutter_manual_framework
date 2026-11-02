@@ -357,6 +357,11 @@ update checks; call `reconcileInstalledContent(removeUnavailable: true)` on a
 # Localized OTA catalog presentation
 
 `language` selects presentation only; manual IDs and access groups never change.
+Updating this property reuses the complete multilingual catalog and preserves
+valid collection navigation and the search query. Concurrent catalog loads share
+one request; explicit SDK synchronization or disposal invalidates the memory
+snapshot. Catalog load failures surface through the error builder rather than
+silently displaying registry names. See [the language audit](docs/DYNAMIC_LANGUAGE_AUDIT.md).
 Use `Localizations.localeOf(context).toLanguageTag()` to preserve a regional
 locale such as `en-US`; `languageCode` deliberately passes only the base language.
 Localized title, subtitle, description and badge labels resolve requested locale,
