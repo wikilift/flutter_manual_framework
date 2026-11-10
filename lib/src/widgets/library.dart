@@ -24,6 +24,7 @@ class OmniManualsPage extends StatelessWidget {
     this.title,
     this.subtitle,
     this.introduction,
+    this.showBreadcrumbs = true,
     this.theme = const OmniManualsThemeData(),
     this.layout = const OmniManualsLayout(),
     this.strings = const OmniManualsStrings(),
@@ -46,6 +47,7 @@ class OmniManualsPage extends StatelessWidget {
   final String? title;
   final String? subtitle;
   final String? introduction;
+  final bool showBreadcrumbs;
   final OmniManualsThemeData theme;
   final OmniManualsLayout layout;
   final OmniManualsStrings strings;
@@ -81,6 +83,7 @@ class OmniManualsPage extends StatelessWidget {
         language: language,
         source: source,
         catalogSource: catalogSource,
+        showBreadcrumbs: showBreadcrumbs,
         title: resolvedTitle,
         subtitle: subtitle ?? introduction,
         theme: theme,
@@ -111,6 +114,7 @@ class OmniManualsLibrary extends StatefulWidget {
     this.title,
     this.subtitle,
     this.showHeader = true,
+    this.showBreadcrumbs = true,
     this.navigateOnManualTap = true,
     this.theme = const OmniManualsThemeData(),
     this.layout = const OmniManualsLayout(),
@@ -138,6 +142,7 @@ class OmniManualsLibrary extends StatefulWidget {
   final String? title;
   final String? subtitle;
   final bool showHeader;
+  final bool showBreadcrumbs;
   final bool navigateOnManualTap;
   final OmniManualsThemeData theme;
   final OmniManualsLayout layout;
@@ -296,6 +301,7 @@ class _OmniManualsLibraryState extends State<OmniManualsLibrary> {
             title: widget.title ?? widget.strings.defaultTitle,
             subtitle: widget.subtitle,
             showHeader: widget.showHeader,
+            showBreadcrumbs: widget.showBreadcrumbs,
             headerIcon: widget.headerIcon,
             rootLabel: widget.rootLabel ?? widget.strings.rootLabel,
             theme: widget.theme,
@@ -502,6 +508,7 @@ class _LibrarySurface extends StatelessWidget {
   const _LibrarySurface({
     required this.title,
     required this.showHeader,
+    required this.showBreadcrumbs,
     required this.theme,
     required this.layout,
     required this.strings,
@@ -525,6 +532,7 @@ class _LibrarySurface extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool showHeader;
+  final bool showBreadcrumbs;
   final Widget? headerIcon;
   final OmniManualsThemeData theme;
   final OmniManualsLayout layout;
@@ -594,7 +602,7 @@ class _LibrarySurface extends StatelessWidget {
                               accentColor: accentColor,
                             ),
                       if (showHeader) SizedBox(height: layout.headerSpacing),
-                      if (path.isNotEmpty) ...[
+                      if (showBreadcrumbs) ...[
                         _Breadcrumbs(
                           path: path,
                           onSelected: onBreadcrumbSelected,
@@ -803,25 +811,33 @@ class _Breadcrumbs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 4,
-      children: [
-        TextButton.icon(
-          onPressed: () => onSelected(-1),
-          icon: Icon(theme.homeIcon ?? Icons.home_outlined, size: 18),
-          label: Text(rootLabel),
-        ),
-        for (var index = 0; index < path.length; index += 1) ...[
-          Icon(theme.breadcrumbSeparatorIcon ?? Icons.chevron_right, size: 18),
-          TextButton(
-            onPressed: index == path.length - 1
-                ? null
-                : () => onSelected(index),
-            child: Text(path[index].title),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      reverse: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton.icon(
+            onPressed: () => onSelected(-1),
+            icon: Icon(theme.homeIcon ?? Icons.home_outlined, size: 18),
+            label: Text(rootLabel),
           ),
+          for (var index = 0; index < path.length; index += 1) ...[
+            const SizedBox(width: 4),
+            Icon(
+              theme.breadcrumbSeparatorIcon ?? Icons.chevron_right,
+              size: 18,
+            ),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: index == path.length - 1
+                  ? null
+                  : () => onSelected(index),
+              child: Text(path[index].title, maxLines: 1, softWrap: false),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
