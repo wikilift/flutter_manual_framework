@@ -26,6 +26,8 @@ final class OmniManualsController {
   Future<void>? _initialization;
   List<OmniManualInfo> _manuals = const [];
   List<OmniLibraryEntry> _libraryEntries = const [];
+  final Map<OmniLibraryCatalogSource, Future<OmniLibraryCatalog?>>
+  _catalogLoads = Map.identity();
   OfflineRuntimeServer? _server;
   OmniManualsSource? _effectiveSource;
   final ValueNotifier<OmniSyncProgress?> progress = ValueNotifier(null);
@@ -216,6 +218,7 @@ final class OmniManualsController {
       _emitEvent(OmniManualsEvent(type: OmniManualsEventType.libraryChanged));
     }
     _server = null;
+    _catalogLoads.clear();
     _effectiveSource = null;
     _manuals = const [];
     _libraryEntries = const [];
@@ -229,11 +232,20 @@ final class OmniManualsController {
   ) async {
     final source = catalogSource ?? _config.catalogSource;
     if (source == null) return null;
+    // Catalogs contain every translation, so cache the raw document rather
+    // than entries resolved for one language. Also share in-flight loads.
+    final pending = _catalogLoads.putIfAbsent(source, source.loadCatalog);
     try {
-      return await source.loadCatalog();
-    } catch (error) {
-      debugPrint('[OmniManuals] Library Catalog rejected: $error');
-      return null;
+      final catalog = await pending;
+      if (catalog == null && identical(_catalogLoads[source], pending)) {
+        _catalogLoads.remove(source);
+      }
+      return catalog;
+    } catch (_) {
+      if (identical(_catalogLoads[source], pending)) {
+        _catalogLoads.remove(source);
+      }
+      rethrow;
     }
   }
 
@@ -536,6 +548,8 @@ final class OmniManualsController {
   }
 
   Future<bool> _refreshRemoteCatalogIfPossible() async {
+    // Explicit synchronization is the boundary for catalog freshness.
+    _catalogLoads.clear();
     final source = _cachedCatalogSource(_config.catalogSource);
     if (source == null) {
       await _config.catalogSource?.refresh();

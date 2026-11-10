@@ -4,4 +4,7 @@ build/
 pubspec.lock
 doc/
 .DS_Store
-test/
+test/*
+!test/dynamic_language_test.dart
+/test
+/docs
